@@ -15,11 +15,11 @@
       var listItem = list.getItemById(id);
       ctx.load(listItem);
 
-      var promise = self._runQuery();
+      var promise = self._runQuery(ctx);
 
-      promise.then(funcion() {
-          var itemValue = listItem.get_fieldValues();
-          record.load(id, itemValue);
+      promise.then(function() {
+        var itemValue = listItem.get_fieldValues();
+        record.load(id, itemValue);
       });
 
       return promise;
@@ -27,43 +27,26 @@
 
     findAll: function(klass, records) {
       var self = this;
-      //  SharePoint stuff really need to figure out a cleaner way
-      var ctx = SP.ClientContext.get_current();
-      var web = ctx.get_web();
-      ctx.load(web);
-
-      var lists = web.get_lists();
-      ctx.load(lists);
-
-      var list = lists.getByTitle(get(klass, 'listTitle')); 
-      window.list = list;
-      ctx.load(list);
-      //  Done with SharePoint stuff...
+      var list = self._getListObject(klass);
+      var ctx = list.get_context();
 
       var camlQuery = new SP.CamlQuery();
       camlQuery.set_viewXml('');
       var listItems = list.getItems(camlQuery);
       ctx.load(listItems);
 
-      var promise = new Ember.RSVP.Promise(function(resolve, reject){
-        ctx.executeQueryAsync(function(sender, args) {
-          var responseArray = [];
-          var enumerator = listItems.getEnumerator();
-          while (enumerator.moveNext()) {
-            var spObj = enumerator.get_current();
-            responseArray.push(spObj.get_fieldValues());
-          }
+      var promise = self._runQuery(ctx);
 
-          //  Is there a point to do both the load and the resolve?
-          self._getListMetaData(klass, list);
-
-          records.load(klass, responseArray);
-          resolve(responseArray);
-        }, function(sender, error) {
-          console.error(error.get_message());
-          reject(error);
-        });
-
+      promise.then(function() {
+        var responseArray = [];
+        var enumerator = listItems.getEnumerator();
+        while (enumerator.moveNext()) {
+          var spObj = enumerator.get_current();
+          responseArray.push(spObj.get_fieldValues());
+        }
+        window.responseArray = responseArray;
+        self._getListMetaData(klass, list);
+        records.load(klass, responseArray);
       });
       return promise;
     },
@@ -85,7 +68,7 @@
       return list;
     },
 
-    _runQuery: function() {
+    _runQuery: function(ctx) {
       var promise = new Ember.RSVP.Promise(function(resolve, reject){
         ctx.executeQueryAsync(function(sender, args) {
           resolve();
@@ -94,8 +77,9 @@
           console.error(error.get_message());
           reject(error);
         });
+      });
 
-        return promise;
+      return promise;
     },
 
     _getListMetaData: function(klass, spListObject) {
