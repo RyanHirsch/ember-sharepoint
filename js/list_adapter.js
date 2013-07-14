@@ -9,37 +9,19 @@
   window.Ember.SPListAdapter = Ember.Adapter.extend({
     find: function(record, id) {
       var self = this;
-      //  SharePoint stuff really need to figure out a cleaner way
-      var ctx = SP.ClientContext.get_current();
-      var web = ctx.get_web();
-      ctx.load(web);
-
-      var lists = web.get_lists();
-      ctx.load(lists);
-
-      var list = lists.getByTitle(get(record.constructor, 'listTitle')); 
-      window.list = list;
-      ctx.load(list);
-      //  Done with SharePoint stuff...
+      var list = self._getListObject(record.constructor);
+      var ctx = list.get_context();
 
       var listItem = list.getItemById(id);
       ctx.load(listItem);
 
-      var promise = new Ember.RSVP.Promise(function(resolve, reject){
-        ctx.executeQueryAsync(function(sender, args) {
+      var promise = self._runQuery();
+
+      promise.then(funcion() {
           var itemValue = listItem.get_fieldValues();
-
-          //  Is there a point to do both the load and the resolve?
-          // self._getListMetaData(klass, itemValue);
-
           record.load(id, itemValue);
-          resolve(itemValue);
-        }, function(sender, error) {
-          console.error(error.get_message());
-          reject(error);
-        });
-
       });
+
       return promise;
     },
 
@@ -84,6 +66,36 @@
 
       });
       return promise;
+    },
+
+    _getListObject: function(klass) {
+      var spListObject = get(klass, 'spListObject');
+      if(spListObject) return spListObject;
+
+      var ctx = SP.ClientContext.get_current();
+      var web = ctx.get_web();
+      var lists = web.get_lists();
+      var list = lists.getByTitle(get(klass, 'listTitle'));
+
+      ctx.load(web);
+      ctx.load(lists);
+      ctx.load(list);
+
+      set(klass, 'spListObject', spListObject);
+      return list;
+    },
+
+    _runQuery: function() {
+      var promise = new Ember.RSVP.Promise(function(resolve, reject){
+        ctx.executeQueryAsync(function(sender, args) {
+          resolve();
+        },
+        function(sender, error) {
+          console.error(error.get_message());
+          reject(error);
+        });
+
+        return promise;
     },
 
     _getListMetaData: function(klass, spListObject) {
