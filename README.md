@@ -25,6 +25,7 @@ App.Project.adapter = Ember.SPListAdapter.create();
 - Refactor findAll to something that makes sense
 - CRUD to List Items (non-versioned lists)
 - CRUD to List Items (versioned lists)
+- Allow Query
 - SPWebAdapter
 - SPNavigationAdapter
 - Custom view compontents (People Picker, Managed Metadata)
